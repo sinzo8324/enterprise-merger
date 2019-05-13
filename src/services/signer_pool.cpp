@@ -4,7 +4,7 @@
 using namespace gruut::config;
 
 namespace gruut {
-void SignerPool::pushSigner(signer_id_type &user_id, std::string &pk_cert,
+void SignerPool::pushSigner(signer_id_type &user_id, std::string &pk_cert, bytes mm_id,
                             Botan::secure_vector<uint8_t> &hmac_key,
                             SignerStatus status) {
   Signer new_signer;
@@ -12,6 +12,7 @@ void SignerPool::pushSigner(signer_id_type &user_id, std::string &pk_cert,
   new_signer.pk_cert = pk_cert;
   new_signer.hmac_key = hmac_key;
   new_signer.status = status;
+  new_signer.mm_id = mm_id;
   new_signer.last_update = Time::now_int();
 
   auto signer_iter = find(new_signer.user_id);

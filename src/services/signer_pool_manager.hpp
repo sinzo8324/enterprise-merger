@@ -34,6 +34,7 @@ using namespace std;
 namespace gruut {
 struct JoinTemporaryData {
   string merger_nonce;
+  bytes merger_manager_id;
   string signer_cert;
   vector<uint8_t> shared_secret_key;
   timestamp_t start_time;

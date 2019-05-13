@@ -12,6 +12,7 @@ struct Signer {
   std::string pk_cert;
   hmac_key_type hmac_key;
   timestamp_t last_update{0};
+  bytes mm_id;
   SignerStatus status{SignerStatus::UNKNOWN};
 };
 

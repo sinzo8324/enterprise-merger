@@ -22,7 +22,7 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
       sendErrorMessage(recv_id, ErrorMsgType::ECDH_MAX_SIGNER_POOL);
       return;
     }
-
+    bytes mm_id = Safe::getBytesFromB64(input_message.body, "mmID");
     auto current_time = Time::now_int();
 
     m_join_temp_table[recv_id_b64].reset(new JoinTemporaryData());
@@ -31,13 +31,15 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
         static_cast<timestamp_t>(current_time);
     m_join_temp_table[recv_id_b64]->merger_nonce =
         PRNG::toString(PRNG::randomize(32));
+    m_join_temp_table[recv_id_b64]->merger_manager_id = mm_id;
 
     OutputMsgEntry output_message;
     output_message.type = MessageType::MSG_CHALLENGE;
     output_message.body["mID"] = TypeConverter::encodeBase64(m_my_id);
     output_message.body["time"] = to_string(current_time);
     output_message.body["mN"] = m_join_temp_table[recv_id_b64]->merger_nonce;
-    output_message.receivers = {recv_id};
+    output_message.body["sID"] = recv_id_b64;
+    output_message.receivers = {mm_id};
 
     m_proxy.deliverOutputMessage(output_message);
 
@@ -61,6 +63,8 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
       sendErrorMessage(recv_id, ErrorMsgType::ECDH_INVALID_SIG);
       return;
     }
+
+    bytes mm_id = m_join_temp_table[recv_id_b64]->merger_manager_id;
 
     m_join_temp_table[recv_id_b64]->signer_cert =
         Safe::getString(input_message.body, "cert");
@@ -101,7 +105,8 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
     output_message.body["sig"] = signMessage(
         m_join_temp_table[recv_id_b64]->merger_nonce,
         Safe::getString(input_message.body, "sN"), dhx, dhy, current_time);
-    output_message.receivers = {recv_id};
+    output_message.body["sID"] = recv_id_b64;
+    output_message.receivers = {mm_id};
 
     m_proxy.deliverOutputMessage(output_message);
 
@@ -109,6 +114,7 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
         m_join_temp_table[recv_id_b64]->shared_secret_key);
     m_signer_pool->pushSigner(recv_id,
                               m_join_temp_table[recv_id_b64]->signer_cert,
+                              mm_id,
                               secret_key_vector, SignerStatus::TEMPORARY);
     m_join_temp_table[recv_id_b64]->join_lock = false;
   } break;
@@ -122,7 +128,7 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
                        "too late MSG_SUCCESS");
       return;
     }
-
+    bytes mm_id = m_join_temp_table[recv_id_b64]->merger_manager_id;
     m_signer_pool->updateStatus(recv_id, SignerStatus::GOOD);
     m_join_temp_table.erase(recv_id_b64);
 
@@ -131,7 +137,8 @@ void SignerPoolManager::handleMessage(InputMsgEntry &input_message) {
     output_message.body["mID"] = TypeConverter::encodeBase64(m_my_id);
     output_message.body["time"] = Time::now();
     output_message.body["val"] = true;
-    output_message.receivers = {recv_id};
+    output_message.body["sID"] = recv_id_b64;
+    output_message.receivers = {mm_id};
 
     m_proxy.deliverOutputMessage(output_message);
 

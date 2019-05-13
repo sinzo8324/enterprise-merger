@@ -146,26 +146,23 @@ void SignatureRequester::sendRequestMessage(std::vector<Signer> &signers) {
     CLOG(ERROR, "SIGR") << "No signer";
     return;
   }
+    for_each(signers.begin(), signers.end(), [&](Signer signer) {
+        OutputMsgEntry output_message;
+        output_message.type = MessageType::MSG_REQ_SSIG;
+        output_message.body["time"] = Time::now();
+        output_message.body["mID"] =
+                TypeConverter::encodeBase64(m_basic_block_info.merger_id);
+        output_message.body["cID"] =
+                TypeConverter::encodeBase64(m_basic_block_info.chain_id);
+        output_message.body["txrt"] =
+                TypeConverter::encodeBase64(m_basic_block_info.transaction_root);
+        output_message.body["hgt"] = m_basic_block_info.height;
+        output_message.body["sID"] = TypeConverter::encodeBase64(signer.user_id);
+        output_message.receivers = {signer.mm_id};
 
-  vector<id_type> receivers_list;
-  for_each(signers.begin(), signers.end(), [&receivers_list](Signer signer) {
-    receivers_list.emplace_back(signer.user_id);
-  });
-
-  OutputMsgEntry output_message;
-  output_message.type = MessageType::MSG_REQ_SSIG;
-  output_message.body["time"] = Time::now();
-  output_message.body["mID"] =
-      TypeConverter::encodeBase64(m_basic_block_info.merger_id);
-  output_message.body["cID"] =
-      TypeConverter::encodeBase64(m_basic_block_info.chain_id);
-  output_message.body["txrt"] =
-      TypeConverter::encodeBase64(m_basic_block_info.transaction_root);
-  output_message.body["hgt"] = m_basic_block_info.height;
-  output_message.receivers = receivers_list;
-
-  MessageProxy proxy;
-  proxy.deliverOutputMessage(output_message);
+        MessageProxy proxy;
+        proxy.deliverOutputMessage(output_message);
+    });
 }
 
 std::vector<Signer> SignatureRequester::selectSigners() {

@@ -16,7 +16,7 @@
 namespace gruut {
 class SignerPool : public TemplateSingleton<SignerPool> {
 public:
-  void pushSigner(signer_id_type &user_id, std::string &pk_cert,
+  void pushSigner(signer_id_type &user_id, std::string &pk_cert, bytes mm_id,
                   Botan::secure_vector<uint8_t> &hmac_key,
                   SignerStatus stat = SignerStatus::UNKNOWN);
 
