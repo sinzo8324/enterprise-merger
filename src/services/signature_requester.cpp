@@ -146,23 +146,45 @@ void SignatureRequester::sendRequestMessage(std::vector<Signer> &signers) {
     CLOG(ERROR, "SIGR") << "No signer";
     return;
   }
-    for_each(signers.begin(), signers.end(), [&](Signer signer) {
-        OutputMsgEntry output_message;
-        output_message.type = MessageType::MSG_REQ_SSIG;
-        output_message.body["time"] = Time::now();
-        output_message.body["mID"] =
-                TypeConverter::encodeBase64(m_basic_block_info.merger_id);
-        output_message.body["cID"] =
-                TypeConverter::encodeBase64(m_basic_block_info.chain_id);
-        output_message.body["txrt"] =
-                TypeConverter::encodeBase64(m_basic_block_info.transaction_root);
-        output_message.body["hgt"] = m_basic_block_info.height;
-        output_message.body["sID"] = TypeConverter::encodeBase64(signer.user_id);
-        output_message.receivers = {signer.mm_id};
 
-        MessageProxy proxy;
-        proxy.deliverOutputMessage(output_message);
-    });
+  std::vector<bytes> mm_ids;
+  std::vector<json> list;
+  for_each(signers.begin(), signers.end(), [&](Signer signer) {
+      if(mm_ids.empty()){
+        mm_ids.push_back(signer.mm_id);
+      } else {
+        if(find(mm_ids.begin(),mm_ids.end(), signer.mm_id) == mm_ids.end()){
+          mm_ids.push_back(signer.mm_id);
+        }
+      }
+  });
+
+  std::vector<string> s_ids[mm_ids.size()];
+  for_each(signers.begin(), signers.end(), [&](Signer signer) {
+      auto it = find(mm_ids.begin(), mm_ids.end(), signer.mm_id);
+      int pos = distance(mm_ids.begin(), it);
+      s_ids[pos].push_back(TypeConverter::encodeBase64(signer.user_id));
+  });
+
+  MessageProxy proxy;
+  OutputMsgEntry output_message;
+  int idx = 0;
+  for_each(mm_ids.begin(), mm_ids.end(), [&](bytes mm_id) {
+      json j_sid_list(s_ids[idx++]);
+      output_message.type = MessageType::MSG_REQ_SSIG;
+      output_message.body["time"] = Time::now();
+      output_message.body["mID"] =
+              TypeConverter::encodeBase64(m_basic_block_info.merger_id);
+      output_message.body["cID"] =
+              TypeConverter::encodeBase64(m_basic_block_info.chain_id);
+      output_message.body["txrt"] =
+              TypeConverter::encodeBase64(m_basic_block_info.transaction_root);
+      output_message.body["hgt"] = m_basic_block_info.height;
+      output_message.body["sID"] = j_sid_list;
+      output_message.receivers = {mm_id};
+
+      proxy.deliverOutputMessage(output_message);
+  });
 }
 
 std::vector<Signer> SignatureRequester::selectSigners() {
